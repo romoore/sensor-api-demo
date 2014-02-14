@@ -30,7 +30,18 @@ var sensorViz = function(){
 			xaxis:{min:-maxAge,max:0},
 			shadowSize:0,
 			legend:{position:"nw",noColumns: 2},
-			series:{points:{show:true,radius:1},lines:{show:true}}
+			series:{points:{show:true,radius:1},lines:{show:true}},
+			xaxes: [{
+				axisLabel: 'Packet Receive Time (s)',
+				axisLabelColour: '#000',
+				color: '#000'
+			}],
+			yaxes: [{
+				position: 'left',
+				axisLabel: 'Receiver RSSI',
+				axisLabelColour: '#000',
+				color: '#000'
+			}]
 		};
 	}
 
