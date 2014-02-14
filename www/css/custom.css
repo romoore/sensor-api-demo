@@ -125,8 +125,7 @@
 }
 
 .rssi-plot-detail {
-	min-height: 260px;
-	height: 100% !important;
+	height: 480px;
 }
 
 .chart-title {

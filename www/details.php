@@ -32,7 +32,7 @@
 		<div class="container">
 			<div class="row">
 				<div class="col-md-12">
-				<h1 style="border-bottom: 1px solid black;"><a href="index.html">Tx <?php echo $txId; ?> RSSI
+				<h1 style="border-bottom: 1px solid black;"><a href="index.html">Transmitter RSSI
 							<small>Updated every 3 seconds</small></a></h1>
 				<div id="chart-container"></div>
 				</div>

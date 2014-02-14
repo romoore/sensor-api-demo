@@ -3,9 +3,6 @@ var sensorViz = function(){
 	var $canvas = $('#canvas');
 
 	var $chartContainer = $('#chart-container');
-	function genOptions(title){
-		return {yaxis:{min:-100,max:-40},xaxis:{min:-60,max:0},shadowSize:0,legend:{position:"nw",noColumns: 2}};
-	}
 	var colors = ['#00f','#3f0','#f6c','#f00','#90c','#c60','#6fc','#090','#993','#ff0','#906','#f60'];
 	var colorIndex = 0;
 	var rxColors = {};
@@ -13,7 +10,7 @@ var sensorViz = function(){
 	var start = Date.now();
 	var latest = 0;
 	var lastUpdate = 0;
-	var maxAge = 60;
+	var maxAge = 120;
 	/* Limit to 30 transmitters on-screen at a time */
 	var maxTx = 30;
 	/* Current number of plots on the screen */
@@ -24,6 +21,15 @@ var sensorViz = function(){
 	var chartData = {};
 	/* txid -> {rxId -> [[ts,rssi],[ts,rssi],...]} */
 	var sensorData = {};
+	function genOptions(title){
+		return {
+			yaxis:{min:-100,max:-40},
+			xaxis:{min:-maxAge,max:0},
+			shadowSize:0,
+			legend:{position:"nw",noColumns: 2},
+			series:{points:{show:true,radius:1},lines:{show:true}}
+		};
+	}
 
 	function restoreFromStorage(){
 		if(typeof window.sessionStorage !== 'undefined'){
@@ -46,6 +52,10 @@ var sensorViz = function(){
 			var sD = window.sessionStorage.getItem('sensorData');
 			if(typeof sD !== 'undefined' && sD != null){
 				sensorData = JSON.parse(sD);
+			}
+			var nt = window.sessionStorage.getItem('numTx');
+			if(typeof nt !== 'undefined' && nt != null){
+				numTx = JSON.parse(nt);
 			}
 			var lu = window.sessionStorage.getItem('lastUpdate');
 			if(typeof lu !== 'undefined' && lu != null){
@@ -72,6 +82,7 @@ var sensorViz = function(){
 			window.sessionStorage.setItem('colors',JSON.stringify(colors));
 			window.sessionStorage.setItem('colorIndex',JSON.stringify(colorIndex));
 			window.sessionStorage.setItem('rxColors',JSON.stringify(rxColors));
+			window.sessionStorage.setItem('numTx',JSON.stringify(numTx));
 		}
 	}
 
@@ -128,6 +139,11 @@ var sensorViz = function(){
 		});
 
 		$.each(sensorData,function(txId,rxMap){
+			if(Object.keys(rxMap).length < 2){
+				delete sensorData[txId];
+				delete chartData[txId];
+				return true;
+			}
 			$.each(rxMap,function(rxId,data){
 				data.sort(function(a,b){
 					return a[0]-b[0];
@@ -186,10 +202,6 @@ var sensorViz = function(){
 					data.splice(0,spliceUntil+1);
 				}
 			});
-			if(Object.keys(mapByRx).length < 2){
-				delete sensorData[txId];
-				delete chartData[txId];
-			}
 		});
 
 		$.each(plots,function(txId,plot){
