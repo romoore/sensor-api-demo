@@ -129,9 +129,9 @@ var sensorViz = function(){
 	
 }();
 $(document).ready(function(){
-
+	var baseURL = "https://localhost:8443/sensor-api-demo/p/rssi/";
 	var doUpdates = function(){
-			var res = $.getJSON("https://localhost:8443/sensor-api-demo/p/rssi/since?since="+(sensorViz.latest+1)+"&callback=?");
+			var res = $.getJSON(baseURL+"since?since="+(sensorViz.latest+1)+"&callback=?");
 			res.done(function(data){
 				sensorViz.update(data);
 			}).error(function(xhr,status){
