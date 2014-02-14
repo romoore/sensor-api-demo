@@ -25,6 +25,58 @@ var sensorViz = function(){
 	/* txid -> {rxId -> [[ts,rssi],[ts,rssi],...]} */
 	var sensorData = {};
 
+	function restoreFromStorage(){
+		if(typeof window.sessionStorage !== 'undefined'){
+			var col = window.sessionStorage.getItem('colors');
+			if(typeof col !== 'undefined' && col != null){
+				colors = JSON.parse(col);
+			}
+			var cI = window.sessionStorage.getItem('colorIndex');
+			if(typeof cI !== 'undefined' && col != null){
+				colorIndex = JSON.parse(cI);
+			}
+			var rxC = window.sessionStorage.getItem('rxColors');
+			if(typeof rxC !== 'undefined' && rxC != null){
+				rxColors = JSON.parse(rxC);
+			}
+			var st = window.sessionStorage.getItem('start');
+			if(typeof st !== 'undefined' && st != null){
+				start = JSON.parse(st);
+			}
+			var sD = window.sessionStorage.getItem('sensorData');
+			if(typeof sD !== 'undefined' && sD != null){
+				sensorData = JSON.parse(sD);
+			}
+			var lu = window.sessionStorage.getItem('lastUpdate');
+			if(typeof lu !== 'undefined' && lu != null){
+				lastUpdate = JSON.parse(lu);
+			}
+
+			/* Rebuild chartData */
+			$.each(sensorData,function(txId,rxMap){
+				chartData[txId] = [];
+				$.each(rxMap,function(rxId,dataArr){
+					chartData[txId].push({label: 'Rx ' + rxId,
+						data: dataArr,
+						color: rxColors[rxId]});
+				});
+			});
+		}
+	}
+
+	function saveToStorage(){
+		if(typeof window.sessionStorage !== 'undefined'){
+			window.sessionStorage.setItem('start',JSON.stringify(start));
+			window.sessionStorage.setItem('sensorData',JSON.stringify(sensorData));
+			window.sessionStorage.setItem('lastUpdate',JSON.stringify(lastUpdate));
+			window.sessionStorage.setItem('colors',JSON.stringify(colors));
+			window.sessionStorage.setItem('colorIndex',JSON.stringify(colorIndex));
+			window.sessionStorage.setItem('rxColors',JSON.stringify(rxColors));
+		}
+	}
+
+
+//	window.sessionStorage.clear();
 	/* txId -> flot chart */
 	var plots = {};
 	this.updateSensors = function(jsonData){
@@ -32,9 +84,10 @@ var sensorViz = function(){
 		// Go through each data that came back
 		$.each(jsonData,function(idx,rssiDatum){
 			// If we're showing only one transmitter, skip the others
-			if(typeof detailTxId !== 'undefined' && rssiDatum.transmitter != detailTxId){
+/*			if(typeof detailTxId !== 'undefined' && rssiDatum.transmitter != detailTxId){
 				return true;
 			}
+			*/
 			// For each one, dump the data into a per-receiver array of points
 	
 			/* No previous RSSI data for this txer, create a new dictionary */
@@ -101,6 +154,9 @@ var sensorViz = function(){
 		* 3. Use flot to plot in that container
 		*/
 		$.each(sensorData,function(txId,mapByRx){
+			if(typeof detailTxId !== 'undefined' && detailTxId != txId){
+				return true;
+			}
 			var numRx = Object.keys(mapByRx).length;
 			if(!currentTxers[txId]){
 				currentTxers[txId] = numRx;
@@ -122,6 +178,7 @@ var sensorViz = function(){
 		});
 
 		lastUpdate = now;
+		saveToStorage();
 	}
 
 	window.addEventListener('resize',function(){
@@ -133,7 +190,9 @@ var sensorViz = function(){
 
 	return {
 		update: this.updateSensors,
-		latest: latest
+		latest: latest,
+		restore: restoreFromStorage,
+		save: saveToStorage
 	}
 	
 }();
@@ -141,9 +200,11 @@ $(document).ready(function(){
 	var baseURL = "https://localhost:8443/sensor-api-demo/p/rssi/";
 	var doUpdates = function(){
 		var selectTxer = '';
-		if(typeof detailTxId !== 'undefined'){
+		/*
+	  if(typeof detailTxId !== 'undefined'){
 			selectTxer = '&txid='+detailTxId;
 		}
+		*/
 			var res = $.getJSON(baseURL+"since?since="+(sensorViz.latest+1)+selectTxer+"&callback=?");
 			res.done(function(data){
 				sensorViz.update(data);
@@ -154,6 +215,7 @@ $(document).ready(function(){
 			});
 		
 	}
+	sensorViz.restore();
 
 	doUpdates();
 	});
