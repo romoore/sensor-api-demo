@@ -179,13 +179,15 @@ var sensorViz = function(){
 				currentTxers[txId] = numRx;
 				/* If showing only 1, then make its container big! */
 				var txName = 'Tx ' + txId;
+				var showName = false;
 				if(typeof txNames[txId] !== 'undefined' && txNames[txId] != null){
 					txName = txNames[txId];
+					showName = true;
 				}
 				if(typeof detailTxId !== 'undefined'){
-					$chartContainer.append($('<h2 class="editable" id="edit-t-'+txId+'">'+txName+'</h2><div id="t-'+txId+'" class="rssi-plot rssi-plot-detail"></div>'));
+					$chartContainer.append($('<h2><span class="editable" id="edit-t-'+txId+'">'+txName+'</span>'+(showName?' <small>('+txId+')</small>':'')+'</h2><div id="t-'+txId+'" class="rssi-plot rssi-plot-detail"></div>'));
 				}else {
-					$chartContainer.append($('<div class="col-xs-6 col-sm-6 col-md-4 col-lg-3"><h2 class="editable" id="edit-t-'+txId+'">'+txName+'</h2><a href="details.php?t='+txId+'"><div id="t-'+txId+'" class="rssi-plot"></div></a></div>'));
+					$chartContainer.append($('<div class="col-xs-6 col-sm-6 col-md-4 col-lg-3"><h2><span class="editable" id="edit-t-'+txId+'">'+txName+'</span> '+(showName?' <small>('+txId+')</small>':'')+'</h2><a href="details.php?t='+txId+'"><div id="t-'+txId+'" class="rssi-plot"></div></a></div>'));
 				}
 				$('#edit-t-'+txId).inlineEdit({
 					save: function(event,hash,widget){
