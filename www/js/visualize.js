@@ -129,7 +129,6 @@ var sensorViz = function(){
 			/* Push the timestamp (relative) and RSSI into the array */
 			var ts = (rssiDatum.timestamp - currentTime)/1000;
 
-			console.log(currentTime + '-'+rssiDatum.timestamp + ' = ' + ts);
 			/* Update "latest" timestamp for next AJAX call */
 /*			if(rssiDatum.timestamp > latest){
 				latest = rssiDatum.timestamp;
@@ -253,7 +252,6 @@ $(document).ready(function(){
 			sensorViz.tick();
 			setTimeout(doUpdates,1000);
 		}
-		console.log(updateCount);
 		
 	}
 	sensorViz.restore();
