@@ -1,0 +1,128 @@
+/* Custom CSS rules for LAS-MVP */
+.alert-box {
+	font-size: 8pt;
+	border-top-right-radius: 0px;
+	border-top-left-radius: 10px;
+	border-bottom-right-radius: 10px;
+	border-bottom-left-radius: 10px;
+	padding: 8px;
+	/*box-shadow: 2px 2px 5px rgba(0,0,0,0.6);*/
+	position: relative;
+	margin-bottom: 2em;
+	border-style: solid;
+	border-width: 1px;
+	border-color: #000;
+}
+
+.alert-cold, tr.alert-cold>td {
+	background: #aaf !important;
+}
+
+
+.alert-hot, tr.alert-hot>td {
+	background: #f66 !important;
+}
+
+
+.alert-light, tr.alert-light>td {
+	background: #fe5 !important;
+}
+
+.alert-box-dismiss {
+	position: absolute;
+	right: 5px;
+	top: 5px;
+	font-size: 150%;
+}
+
+.alert-box-icon {
+	position: absolute;
+	left: 8px;
+	top: 8px;
+	font-size: 150%;
+}
+
+.alert-box-name {
+	position: relative;
+	left: 2em;
+	font-size: 150%;
+	font-weight: bold;
+}
+
+.alert-box-values {
+	font-weight: bold;
+	font-size: 200%;
+}
+
+.alert-box-time {
+	font-size: 150%;
+}
+
+.alert-box-open {
+	position: absolute;
+	right: 1em;
+	bottom: 10px;
+}
+
+.hiddenRow {
+	padding-top: 0 !important; 
+	padding-bottom: 0 !important;
+	border-top: 0 !important;
+}
+
+.status-building-name {
+	font-weight: bold;
+	font-size: 130%;
+}
+
+.status-table a {
+	color:inherit;
+}
+
+.temp-spinner, .humid-spinner {
+	width: 2em;
+}
+
+.light-spinner {
+	width: 5em;
+}
+
+.set-point {
+	font-weight: normal;
+	font-style: italic;
+}
+#canvas {
+	z-index: 0;
+}
+
+#canvas:active {
+	cursor: default;
+}
+
+#renderPane {
+	position: relative;
+}
+
+#resize {
+	position: absolute;
+	line-height: 1em;
+	right: 15px;
+	bottom: 5px;
+	border: 1px solid black;
+	margin: 0;
+	padding: 1px;
+	z-index: 50;
+}
+
+.thumbnail {
+	max-width: 360px;
+}
+
+.rssi-plot {
+	height: 260px;
+	width: 100%;
+	display: inline-block;
+}
+.chart-title {
+	font-weight: bold;
+}
