@@ -4,7 +4,7 @@ var sensorViz = function(){
 
 	var $chartContainer = $('#chart-container');
 	function genOptions(title){
-		return {yaxis:{min:-100,max:0},xaxis:{min:-60,max:0},shadowSize:0};
+		return {yaxis:{min:-100,max:-40},xaxis:{min:-60,max:0},shadowSize:0,legend:{position:"nw",noColumns: 2}};
 	}
 	var colors = ['#00f','#3f0','#f6c','#f00','#90c','#c60','#6fc','#090','#993','#ff0','#906','#f60'];
 	var colorIndex = 0;
@@ -80,7 +80,13 @@ var sensorViz = function(){
 	/* txId -> flot chart */
 	var plots = {};
 	this.updateSensors = function(jsonData){
-		var currentTime = Date.now();
+		var currentTime = jsonData[jsonData.length-1].timestamp; //Date.now();
+		latest = currentTime;
+		/* All data is now in sensorData[tx][rx].
+		* Need to drop any transmitters where only 1 receiver heard it.
+		* This should reduce number of corrupt txid devices
+		*/
+		updateDataTimestamps();
 		// Go through each data that came back
 		$.each(jsonData,function(idx,rssiDatum){
 			// If we're showing only one transmitter, skip the others
@@ -110,41 +116,25 @@ var sensorViz = function(){
 					color: rxColors[rssiDatum.receiver]});
 			}
 			/* Push the timestamp (relative) and RSSI into the array */
-			var ts = (currentTime - rssiDatum.timestamp)/1000;
+			var ts = (rssiDatum.timestamp - currentTime)/1000;
+
+			console.log(currentTime + '-'+rssiDatum.timestamp + ' = ' + ts);
 			/* Update "latest" timestamp for next AJAX call */
-			if(rssiDatum.timestamp > latest){
+/*			if(rssiDatum.timestamp > latest){
 				latest = rssiDatum.timestamp;
 			}
+*/
 			sensorData[rssiDatum.transmitter][rssiDatum.receiver].push([ts,rssiDatum.rssi]);
 		});
 
-		/* All data is now in sensorData[tx][rx].
-		* Need to drop any transmitters where only 1 receiver heard it.
-		* This should reduce number of corrupt txid devices
-		*/
-		var now = (Date.now()-start)/1000;
-		var delta = now - lastUpdate;
-		$.each(sensorData,function(txId,mapByRx){
-			$.each(mapByRx,function(rxId,data){
+		$.each(sensorData,function(txId,rxMap){
+			$.each(rxMap,function(rxId,data){
 				data.sort(function(a,b){
 					return a[0]-b[0];
 				});
-				var spliceUntil = -1;
-				for(var i = 0; i < data.length; i++){
-						data[i][0] -= delta;
-						if(data[i][0] < -maxAge){
-							spliceUntil = i;
-						}
-				}
-				if(spliceUntil >=0){
-					data.splice(0,spliceUntil+1);
-				}
 			});
-			if(Object.keys(mapByRx).length < 2){
-				delete sensorData[txId];
-				delete chartData[txId];
-			}
 		});
+
 
 		
 		/*
@@ -177,8 +167,37 @@ var sensorViz = function(){
 			}
 		});
 
-		lastUpdate = now;
 		saveToStorage();
+	}
+	function updateDataTimestamps(){
+		var now = (Date.now()-start)/1000;
+		var delta = now - lastUpdate;
+		lastUpdate = now;
+		$.each(sensorData,function(txId,mapByRx){
+			$.each(mapByRx,function(rxId,data){
+				var spliceUntil = -1;
+				for(var i = 0; i < data.length; i++){
+						data[i][0] -= delta;
+						if(data[i][0] < -maxAge){
+							spliceUntil = i;
+						}
+				}
+				if(spliceUntil >=0){
+					data.splice(0,spliceUntil+1);
+				}
+			});
+			if(Object.keys(mapByRx).length < 2){
+				delete sensorData[txId];
+				delete chartData[txId];
+			}
+		});
+
+		$.each(plots,function(txId,plot){
+			if(typeof chartData[txId] !== 'undefined'){
+				plot.setData(chartData[txId]);
+				plot.draw();
+			}
+		});
 	}
 
 	window.addEventListener('resize',function(){
@@ -190,6 +209,7 @@ var sensorViz = function(){
 
 	return {
 		update: this.updateSensors,
+			tick: updateDataTimestamps,
 		latest: latest,
 		restore: restoreFromStorage,
 		save: saveToStorage
@@ -198,6 +218,7 @@ var sensorViz = function(){
 }();
 $(document).ready(function(){
 	var baseURL = "https://localhost:8443/sensor-api-demo/p/rssi/";
+	var updateCount = -1;
 	var doUpdates = function(){
 		var selectTxer = '';
 		/*
@@ -205,18 +226,26 @@ $(document).ready(function(){
 			selectTxer = '&txid='+detailTxId;
 		}
 		*/
+		if((updateCount = (updateCount+1)%3) == 0){
+
+
 			var res = $.getJSON(baseURL+"since?since="+(sensorViz.latest+1)+selectTxer+"&callback=?");
 			res.done(function(data){
 				sensorViz.update(data);
 			}).error(function(xhr,status){
 				console.log(xhr);
 			}).always(function(data){
-				setTimeout(doUpdates,3000);
+				setTimeout(doUpdates,1000);
 			});
+		}	else {
+			sensorViz.tick();
+			setTimeout(doUpdates,1000);
+		}
+		console.log(updateCount);
 		
 	}
 	sensorViz.restore();
 
 	doUpdates();
-	});
+});
 
