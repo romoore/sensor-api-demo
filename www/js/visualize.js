@@ -31,6 +31,10 @@ var sensorViz = function(){
 		var currentTime = Date.now();
 		// Go through each data that came back
 		$.each(jsonData,function(idx,rssiDatum){
+			// If we're showing only one transmitter, skip the others
+			if(typeof detailTxId !== 'undefined' && rssiDatum.transmitter != detailTxId){
+				return true;
+			}
 			// For each one, dump the data into a per-receiver array of points
 	
 			/* No previous RSSI data for this txer, create a new dictionary */
@@ -100,7 +104,12 @@ var sensorViz = function(){
 			var numRx = Object.keys(mapByRx).length;
 			if(!currentTxers[txId]){
 				currentTxers[txId] = numRx;
-				$chartContainer.append($('<div class="col-xs-6 col-sm-6 col-md-4 col-lg-3"><h2>Tx '+txId+'</h2><div id="t-'+txId+'" class="rssi-plot"></div></div>'));
+				/* If showing only 1, then make its container big! */
+				if(typeof detailTxId !== 'undefined'){
+					$chartContainer.append($('<h2>Tx '+txId+'</h2><div id="t-'+txId+'" class="rssi-plot rssi-plot-detail"></div>'));
+				}else {
+					$chartContainer.append($('<div class="col-xs-6 col-sm-6 col-md-4 col-lg-3"><h2>Tx '+txId+'</h2><a href="details.php?t='+txId+'"><div id="t-'+txId+'" class="rssi-plot"></div></a></div>'));
+				}
 				plots[txId] = $.plot($('#t-'+txId),chartData[txId],genOptions(txId));
 			}else {
 				plots[txId].setData(chartData[txId]);
@@ -131,7 +140,11 @@ var sensorViz = function(){
 $(document).ready(function(){
 	var baseURL = "https://localhost:8443/sensor-api-demo/p/rssi/";
 	var doUpdates = function(){
-			var res = $.getJSON(baseURL+"since?since="+(sensorViz.latest+1)+"&callback=?");
+		var selectTxer = '';
+		if(typeof detailTxId !== 'undefined'){
+			selectTxer = '&txid='+detailTxId;
+		}
+			var res = $.getJSON(baseURL+"since?since="+(sensorViz.latest+1)+selectTxer+"&callback=?");
 			res.done(function(data){
 				sensorViz.update(data);
 			}).error(function(xhr,status){

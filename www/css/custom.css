@@ -123,6 +123,12 @@
 	width: 100%;
 	display: inline-block;
 }
+
+.rssi-plot-detail {
+	min-height: 260px;
+	height: 100% !important;
+}
+
 .chart-title {
 	font-weight: bold;
 }
@@ -136,3 +142,8 @@
 @media(min-width: 1900px){ .container{
 	width: 1870px;
 }}
+
+h1>a,h1>a:hover,h1>a:active,h1>a:link {
+	text-decoration: none;
+	color: inherit;
+}
