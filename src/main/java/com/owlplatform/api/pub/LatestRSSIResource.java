@@ -55,11 +55,17 @@ public class LatestRSSIResource {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   public RSSIDatum[] getRecentRSSI(@Context HttpServletRequest reqCtx,
-      @QueryParam("since") long since) {
+      @QueryParam("since") long since,@QueryParam("txid")String txid) {
     DataStore ds = (DataStore) reqCtx.getServletContext().getAttribute(
         AggConnectionListener.KEY_DATA_STORE);
+    if(txid == null){
     Collection<RSSIDatum> allRssi = ds.getSince(since);
     return allRssi.toArray(new RSSIDatum[] {});
+    }else {
+      Collection<RSSIDatum> txRSSI = ds.getSinceTx(since,txid);
+      return txRSSI.toArray(new RSSIDatum[]{});
+    
+    }
 
   }
 }
