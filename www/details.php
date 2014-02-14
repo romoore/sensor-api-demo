@@ -42,7 +42,8 @@
 				<script src="js/jquery-ui.js"></script>
 				<script src="js/rAF.js"></script>
 				<script src="js/verge.js"></script>
-				<script src="js/jquery.flot.js"></script>
+				<script src="js/jquery.flot.js"></script>	
+				<script src="js/jquery.inlineedit.js"></script>
 				<!--		<script src="js/particles.js"></script> -->
 	
 				<script>

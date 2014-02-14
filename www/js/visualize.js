@@ -21,6 +21,9 @@ var sensorViz = function(){
 	var chartData = {};
 	/* txid -> {rxId -> [[ts,rssi],[ts,rssi],...]} */
 	var sensorData = {};
+
+	var txNames = {};
+
 	function genOptions(title){
 		return {
 			yaxis:{min:-100,max:-40},
@@ -32,6 +35,12 @@ var sensorViz = function(){
 	}
 
 	function restoreFromStorage(){
+		if(typeof window.localStorage !== 'undefined'){
+			var tn = window.localStorage.getItem('txNames');
+			if(typeof tn !== 'undefined' && tn != null){
+				txNames = JSON.parse(tn);
+			}
+		}
 		if(typeof window.sessionStorage !== 'undefined'){
 			var col = window.sessionStorage.getItem('colors');
 			if(typeof col !== 'undefined' && col != null){
@@ -83,6 +92,9 @@ var sensorViz = function(){
 			window.sessionStorage.setItem('colorIndex',JSON.stringify(colorIndex));
 			window.sessionStorage.setItem('rxColors',JSON.stringify(rxColors));
 			window.sessionStorage.setItem('numTx',JSON.stringify(numTx));
+		}
+		if(typeof window.localStorage !== 'undefined'){
+			window.localStorage.setItem('txNames',JSON.stringify(txNames));
 		}
 	}
 
@@ -166,11 +178,23 @@ var sensorViz = function(){
 			if(!currentTxers[txId]){
 				currentTxers[txId] = numRx;
 				/* If showing only 1, then make its container big! */
-				if(typeof detailTxId !== 'undefined'){
-					$chartContainer.append($('<h2>Tx '+txId+'</h2><div id="t-'+txId+'" class="rssi-plot rssi-plot-detail"></div>'));
-				}else {
-					$chartContainer.append($('<div class="col-xs-6 col-sm-6 col-md-4 col-lg-3"><h2>Tx '+txId+'</h2><a href="details.php?t='+txId+'"><div id="t-'+txId+'" class="rssi-plot"></div></a></div>'));
+				var txName = 'Tx ' + txId;
+				if(typeof txNames[txId] !== 'undefined' && txNames[txId] != null){
+					txName = txNames[txId];
 				}
+				if(typeof detailTxId !== 'undefined'){
+					$chartContainer.append($('<h2 class="editable" id="edit-t-'+txId+'">'+txName+'</h2><div id="t-'+txId+'" class="rssi-plot rssi-plot-detail"></div>'));
+				}else {
+					$chartContainer.append($('<div class="col-xs-6 col-sm-6 col-md-4 col-lg-3"><h2 class="editable" id="edit-t-'+txId+'">'+txName+'</h2><a href="details.php?t='+txId+'"><div id="t-'+txId+'" class="rssi-plot"></div></a></div>'));
+				}
+				$('#edit-t-'+txId).inlineEdit({
+					save: function(event,hash,widget){
+						txNames[txId] = hash.value;
+						saveToStorage();
+					},
+					buttons:'<a href="#" class="save"><span class="glyphicon glyphicon-ok"></span></a>'
+						+'<a href="#" class="cancel"><span class="glyphicon glyphicon-remove"></span></a>'
+				});
 				plots[txId] = $.plot($('#t-'+txId),chartData[txId],genOptions(txId));
 			}else {
 				plots[txId].setData(chartData[txId]);
@@ -230,6 +254,10 @@ var sensorViz = function(){
 $(document).ready(function(){
 	var baseURL = "https://localhost:8443/sensor-api-demo/p/rssi/";
 	var updateCount = -1;
+
+	/* Configure inline-edits */
+	$.inlineEdit.defaults['hover'] = '';
+
 	var doUpdates = function(){
 		var selectTxer = '';
 		/*
