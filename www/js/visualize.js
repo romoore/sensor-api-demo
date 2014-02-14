@@ -11,7 +11,7 @@ var sensorViz = function(){
 	var rxColors = {};
 
 	var start = Date.now();
-	var latest = start;
+	var latest = 0;
 	var lastUpdate = 0;
 	var maxAge = 60;
 	/* Limit to 30 transmitters on-screen at a time */
