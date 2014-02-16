@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.owlplatform.api.model.BinarySensorDatum;
 import com.owlplatform.api.model.RSSIDatum;
 import com.owlplatform.common.SampleMessage;
 
@@ -38,15 +39,26 @@ public class DataStore {
     }
   }
 
+  private static final class BinaryDateComparator implements
+      Comparator<BinarySensorDatum> {
+    public int compare(BinarySensorDatum o1, BinarySensorDatum o2) {
+      long diff = o1.getTs() - o2.getTs();
+      if (diff < 0) {
+        return -1;
+      }
+      return diff == 0 ? 0 : 1;
+    }
+  }
+
   private final ConcurrentSkipListSet<RSSIDatum> rssiQueue = new ConcurrentSkipListSet<RSSIDatum>(
       new RSSIDateComparator());
-  // private final ConcurrentLinkedQueue<RSSIDatum> rssiQueue = new
-  // ConcurrentLinkedQueue<>();
+  private final ConcurrentSkipListSet<BinarySensorDatum> binEvtQueue = new ConcurrentSkipListSet<BinarySensorDatum>(
+      new BinaryDateComparator());
 
   /**
    * Oldest age for on-demand data like RSSI.
    */
-  private static final long MAX_RSSI_AGE = 300000;
+  private static final long MAX_AGE = 300000;
 
   private static final char[] hexArray = { '0', '1', '2', '3', '4', '5', '6',
       '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
@@ -69,39 +81,41 @@ public class DataStore {
   }
 
   public void addSample(SampleMessage sample) {
-    RSSIDatum datum = new RSSIDatum(toHexString(sample.getDeviceId()),
-        toHexString(sample.getReceiverId()), sample.getRssi(),
-        sample.getCreationTimestamp());
+    final String txId = toHexString(sample.getDeviceId());
+    RSSIDatum datum = new RSSIDatum(txId, toHexString(sample.getReceiverId()),
+        sample.getRssi(), sample.getCreationTimestamp());
     this.rssiQueue.add(datum);
     while (this.rssiQueue.size() > MAX_HISTORY_LENGTH) {
       this.rssiQueue.pollFirst();
     }
+    byte[] data = sample.getSensedData();
+    if (data != null && (data[0] & 0x81) == 0x01) {
+      this.binEvtQueue.add(new BinarySensorDatum(txId, sample
+          .getCreationTimestamp(),
+          (data[data.length - 1] & 0x01) == 0x01 ? true : false));
+    }
+    while (this.binEvtQueue.size() > MAX_HISTORY_LENGTH) {
+      this.binEvtQueue.pollFirst();
+    }
   }
 
-  public Collection<RSSIDatum> getAll() {
+  public Collection<RSSIDatum> getRSSIAll() {
     ArrayList<RSSIDatum> copy = new ArrayList<>(MAX_HISTORY_LENGTH);
     copy.addAll(this.rssiQueue);
     return copy;
 
   }
 
-  public Collection<RSSIDatum> getSince(long timestamp) {
+  public Collection<RSSIDatum> getRSSISince(long timestamp) {
     LinkedList<RSSIDatum> copy = new LinkedList<RSSIDatum>();
     copy.addAll(this.rssiQueue.tailSet(new RSSIDatum(null, null, 0, timestamp)));
     return copy;
   }
 
-  public Collection<RSSIDatum> getSinceTx(long timestamp, String txid) {
-    if(txid == null){
-      return getSince(timestamp);
-    }
-    LinkedList<RSSIDatum> copy = new LinkedList<RSSIDatum>();
-    for (RSSIDatum d : this.rssiQueue.tailSet(new RSSIDatum(null, null, 0,
-        timestamp))) {
-      if (d.getTransmitter().equals(txid)) {
-        copy.add(d);
-      }
-    }
+  public Collection<BinarySensorDatum> getBinSince(long timestamp) {
+    LinkedList<BinarySensorDatum> copy = new LinkedList<BinarySensorDatum>();
+    copy.addAll(this.binEvtQueue.tailSet(new BinarySensorDatum(null, timestamp,
+        false)));
     return copy;
   }
 

@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Servlet Filter implementation class SessionFilter
  */
-@WebFilter(description = "Makes JSON into JSONP", urlPatterns = { "/p/rssi/*" })
+@WebFilter(description = "Makes JSON into JSONP", urlPatterns = { "/p/rssi/*","/p/evt/*" })
 public class JSONPFilter implements Filter {
 
   private static final Logger log = LoggerFactory.getLogger(JSONPFilter.class);
