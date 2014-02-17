@@ -319,7 +319,7 @@ var sensorViz = function(){
 		if(jsonData){
 			$.each(jsonData,function(idx,binEvt){
 				var txId = binEvt.tx;
-				var isOn  = !binEvt.ev;
+				var isOn  = binEvt.ev;
 				var evtArr = binaryEvents[txId];
 				if(typeof evtArr == 'undefined' || evtArr == null){
 					binaryEvents[txId] = [];
