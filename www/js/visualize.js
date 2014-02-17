@@ -363,12 +363,12 @@ var sensorViz = function(){
 			$.each(evtArr,function(idx,pts){
 				pts[0] -= delta;
 				if(pts[0] < -chartOptions.maxAgeSec){
-					pts[0] = chartOptions.maxAgeSec);
+					pts[0] = chartOptions.maxAgeSec;
 				}
 				if(pts.length > 1){
 					pts[1] -= delta;
 					if(pts[1] < -chartOptions.maxAgeSec){
-						spliceUntil = i;
+						spliceUntil = idx;
 					}
 				}
 			});
