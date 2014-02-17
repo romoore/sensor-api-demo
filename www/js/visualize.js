@@ -329,6 +329,7 @@ var sensorViz = function(){
 				// STarting a new event: empty array OR last array element "finished"
 				if(isOn && (evtArr.length == 0 || evtArr[evtArr.length-1].length == 2)){
 					var time = (binEvt.ts - currentTime)/1000;
+					evtArr.push([time]);
 				}else if(!isOn && evtArr.length != 0 && evtArr[evtArr.length-1].length == 1){
 					var time = (binEvt.ts - currentTime)/1000;
 					evtArr[evtArr.length-1].push(time);
@@ -358,12 +359,22 @@ var sensorViz = function(){
 		});
 
 		$.each(binaryEvents,function(txId,evtArr){
+			var spliceUntil = -1;
 			$.each(evtArr,function(idx,pts){
 				pts[0] -= delta;
+				if(pts[0] < -chartOptions.maxAgeSec){
+					pts[0] = chartOptions.maxAgeSec);
+				}
 				if(pts.length > 1){
 					pts[1] -= delta;
+					if(pts[1] < -chartOptions.maxAgeSec){
+						spliceUntil = i;
+					}
 				}
 			});
+			if(spliceUntil >= 0){
+				evtArr.splice(0,spliceUntil+1);
+			}
 		});
 
 		$.each(plots,function(txId,plot){

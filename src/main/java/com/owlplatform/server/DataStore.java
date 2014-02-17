@@ -92,7 +92,7 @@ public class DataStore {
     if (data != null && (data[0] & 0x81) == 0x01) {
       this.binEvtQueue.add(new BinarySensorDatum(txId, sample
           .getCreationTimestamp(),
-          (data[data.length - 1] & 0x01) == 0x01 ? true : false));
+          (data[1] & 0x01) == 0x01 ? false : true));
     }
     while (this.binEvtQueue.size() > MAX_HISTORY_LENGTH) {
       this.binEvtQueue.pollFirst();
