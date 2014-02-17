@@ -338,7 +338,6 @@ var sensorViz = function(){
 
 	}; /* updateBinEvents(jsonData) */
 
-	window.sessionStorage.clear();
 	function updateDataTimestamps(){
 		var now = (Date.now()-start)/1000;
 		var delta = now - lastUpdate;
