@@ -89,7 +89,7 @@ public class DataStore {
       this.rssiQueue.pollFirst();
     }
     byte[] data = sample.getSensedData();
-    if (data != null && (data[0] & 0x81) == 0x01) {
+    if (data != null && data.length > 1 && (data[0] & 0x81) == 0x01) {
       this.binEvtQueue.add(new BinarySensorDatum(txId, sample
           .getCreationTimestamp(),
           (data[1] & 0x01) == 0x01 ? false : true));
