@@ -202,8 +202,7 @@ var sensorViz = function(){
 							},
 							maxValue: -40,
 							minValue: -100,
-							timestampFormatter: SmoothieChart.timeFormatter,
-							maxDataSetLength: 10000
+							timestampFormatter: SmoothieChart.timeFormatter
 						});
 				plots[txId].streamTo(document.getElementById('t-'+txId),1000);
 				resize(null,txId);
