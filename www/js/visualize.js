@@ -85,7 +85,7 @@ var sensorViz = function(){
 						var height = plot.height();
 						var width = plot.width();
 						
-						ctx.fillStyle = "rgba(70,70,255,0.1);";
+						ctx.fillStyle = "rgba(70,70,255,0.1)";
 						ctx.fillRect(tl.left,tl.top,br.left-tl.left,height);
 					});
 				ctx.restore();
