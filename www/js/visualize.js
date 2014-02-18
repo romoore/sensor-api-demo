@@ -1,6 +1,18 @@
 var sensorViz = function(){
 
+
 	var $canvas = $('#canvas');
+	var maxCanvHeight = 240;
+	if(maxChartHeight){
+		maxCanvHeight = maxChartHeight;
+
+	}
+	var millisPerPixel = 100; // Single chart
+	var millisPerLine = 15000;
+	if(typeof multiChart !== 'undefined'){
+		millisPerPixel = 400;
+		millisPerLine = 30000;
+	}
 
 	var $chartContainer = $('#chart-container');
 	var colors = ['#00f','#3f0','#f6c','#f00','#90c','#c60','#6fc','#090','#993','#ff0','#906','#f60'];
@@ -25,10 +37,10 @@ var sensorViz = function(){
 	var numTx = 0;
 	/* txid -> true */
 	var currentTxers = {};
-	/* txid -> [{label:xxx,data:xxx},{...}] */
-	var chartData = {};
 	/* txid -> {rxId -> [[ts,rssi],[ts,rssi],...]} */
-	var sensorData = {};
+	var sensorDataRaw = {};
+	/* txid -> {rxId -> TimeSeries} */
+	var timeSeries = {};
 
 	/* txId -> flot chart */
 	var plots = {};
@@ -36,97 +48,7 @@ var sensorViz = function(){
 	var plotsR = {};
 
 	var txNames = {};
-	/* Event drawing plugin for flot */
 	
-	(function ($) {
-
-		var options = {
-			transmitter: null,
-			binaryEvents : null,
-			rssiMin: -100,
-			rssiMax: -40
-		};
-
-
-		/* flot will call this when a plot is created */
-		function init(plot){
-			var bEvents = null;
-			var txId = null;
-			var rssiMin = -100;
-			var rssiMax = 0;
-
-			function mapOptions(plot, options){
-				if(options.binaryEvents){
-					bEvents = binaryEvents;
-				}
-				if(options.transmitter){
-					txId = options.transmitter;
-				}
-				if(options.rssimin){
-					rssiMin = options.rssiMin;
-				}
-				if(options.rssiMax){
-					rssiMax = options.rssiMax;
-				}
-
-				plot.hooks.draw.push(drawEvents);
-			}
-
-			/* Hook (draw) function to render events */
-			function drawEvents(plot, ctx){
-				var events = bEvents[txId];
-				if(typeof events === 'undefined' || events == null){
-					return ;
-				}
-				ctx.save();
-					$.each(events,function(idx,pts){
-						var tl = plot.pointOffset({x:pts[0],y:rssiMax});
-						var br = plot.pointOffset({x:(pts.length > 1 ? pts[1] : 0),y:rssiMin});
-						var height = plot.height();
-						var width = plot.width();
-						
-						ctx.fillStyle = "rgba(70,70,255,0.1)";
-						ctx.fillRect(tl.left,tl.top,br.left-tl.left,height);
-					});
-				ctx.restore();
-			}
-			
-			plot.hooks.processOptions.push(mapOptions);
-		}
-		$.plot.plugins.push({
-			init: init,
-			options: options,
-			name: "opDrawEvents",
-			version: "0.1"
-		});
-	})(jQuery);
-	
-
-	function genOptions(txId,num){
-		return {
-			yaxis:{min:chartOptions.rssiMin,max:chartOptions.rssiMax},
-			xaxis:{min:-chartOptions.maxAgeSec,max:0},
-			shadowSize:0,
-			legend:{position:"nw",noColumns: 2},
-			series:{points:{show:true,radius:1},lines:{show:true}},
-			xaxes: [{
-				axisLabel: 'Packet Receive Time (s)',
-				axisLabelColour: '#000',
-				color: '#000'
-			}],
-			yaxes: [{
-				position: 'left',
-				axisLabel: 'Receiver RSSI',
-				axisLabelColour: '#000',
-				color: '#000'
-			}],
-			binaryEvents: binaryEvents,
-			transmitter: txId,
-			rssiMin: chartOptions.rssiMin,
-			rssiMax: chartOptions.rssiMax
-		};
-	}
-
 	function restoreFromStorage(){
 		if(typeof window.localStorage !== 'undefined'){
 			var tn = window.localStorage.getItem('txNames');
@@ -151,9 +73,19 @@ var sensorViz = function(){
 			if(typeof st !== 'undefined' && st != null){
 				start = JSON.parse(st);
 			}
-			var sD = window.sessionStorage.getItem('sensorData');
+			var sD = window.sessionStorage.getItem('sensorDataRaw');
 			if(typeof sD !== 'undefined' && sD != null){
-				sensorData = JSON.parse(sD);
+				sensorDataRaw = JSON.parse(sD);
+				var count = 0;
+				$.each(sensorDataRaw,function(txId,rxMap){
+					timeSeries[txId] = {};
+					$.each(rxMap,function(rxId,data){
+						timeSeries[txId][rxId]=new TimeSeries();
+						$.each(data,function(idx,arr){
+							timeSeries[txId][rxId].append(arr[0],arr[1]);
+						});
+					});
+				});
 			}
 			var nt = window.sessionStorage.getItem('numTx');
 			if(typeof nt !== 'undefined' && nt != null){
@@ -168,22 +100,13 @@ var sensorViz = function(){
 				binaryEvents = JSON.parse(be);
 			}
 
-			/* Rebuild chartData */
-			$.each(sensorData,function(txId,rxMap){
-				chartData[txId] = [];
-				$.each(rxMap,function(rxId,dataArr){
-					chartData[txId].push({label: 'Rx ' + rxId,
-						data: dataArr,
-						color: rxColors[rxId]});
-				});
-			});
 		}
 	}
 
 	function saveToStorage(){
 		if(typeof window.sessionStorage !== 'undefined'){
 			window.sessionStorage.setItem('start',JSON.stringify(start));
-			window.sessionStorage.setItem('sensorData',JSON.stringify(sensorData));
+			window.sessionStorage.setItem('sensorDataRaw',JSON.stringify(sensorDataRaw));
 			window.sessionStorage.setItem('lastUpdate',JSON.stringify(lastUpdate));
 			window.sessionStorage.setItem('colors',JSON.stringify(colors));
 			window.sessionStorage.setItem('colorIndex',JSON.stringify(colorIndex));
@@ -216,50 +139,25 @@ var sensorViz = function(){
 			// For each one, dump the data into a per-receiver array of points
 	
 			/* No previous RSSI data for this txer, create a new dictionary */
-			if(sensorData[rssiDatum.transmitter] == null){
+			if(sensorDataRaw[rssiDatum.transmitter] == null){
 				if(numTx >= maxTx){
 					return true;
 				}
 				++numTx;
-				sensorData[rssiDatum.transmitter] = {};
-				chartData[rssiDatum.transmitter] = [];
+				sensorDataRaw[rssiDatum.transmitter] = {};
+				timeSeries[rssiDatum.transmitter] = {};
 			}
 			/* No previous RSSI data from this receiver, create a new array */
-			if(!sensorData[rssiDatum.transmitter][rssiDatum.receiver]){
-				sensorData[rssiDatum.transmitter][rssiDatum.receiver] = [];
+			if(!sensorDataRaw[rssiDatum.transmitter][rssiDatum.receiver]){
+				sensorDataRaw[rssiDatum.transmitter][rssiDatum.receiver] = [];
+				timeSeries[rssiDatum.transmitter][rssiDatum.receiver] = new TimeSeries();
 				if(!rxColors[rssiDatum.receiver]){
 					rxColors[rssiDatum.receiver] = colors[colorIndex++];
 				}
-				chartData[rssiDatum.transmitter].push({label: 'Rx ' + rssiDatum.receiver,
-					data: sensorData[rssiDatum.transmitter][rssiDatum.receiver],
-					color: rxColors[rssiDatum.receiver]});
 			}
-			/* Push the timestamp (relative) and RSSI into the array */
-			var ts = (rssiDatum.timestamp - currentTime)/1000;
-
-			/* Update "latest" timestamp for next AJAX call */
-/*			if(rssiDatum.timestamp > latest){
-				latest = rssiDatum.timestamp;
-			}
-*/
-			sensorData[rssiDatum.transmitter][rssiDatum.receiver].push([ts,rssiDatum.rssi]);
+			sensorDataRaw[rssiDatum.transmitter][rssiDatum.receiver].push([rssiDatum.timestamp,rssiDatum.rssi]);
+			timeSeries[rssiDatum.transmitter][rssiDatum.receiver].append(rssiDatum.timestamp,rssiDatum.rssi);
 		});
-
-		$.each(sensorData,function(txId,rxMap){
-			if(Object.keys(rxMap).length < 2){
-				delete sensorData[txId];
-				delete chartData[txId];
-				return true;
-			}
-			$.each(rxMap,function(rxId,data){
-				data.sort(function(a,b){
-					return a[0]-b[0];
-				});
-			});
-		});
-
-
-
 
 		
 		/*
@@ -268,7 +166,7 @@ var sensorViz = function(){
 		* 2. Add that div to the container
 		* 3. Use flot to plot in that container
 		*/
-		$.each(sensorData,function(txId,mapByRx){
+		$.each(sensorDataRaw,function(txId,mapByRx){
 			if(typeof detailTxId !== 'undefined' && detailTxId != txId){
 				return true;
 			}
@@ -283,9 +181,9 @@ var sensorViz = function(){
 					showName = true;
 				}
 				if(typeof detailTxId !== 'undefined'){
-					$chartContainer.append($('<h2><span class="editable" id="edit-t-'+txId+'">'+txName+'</span>'+(showName?' <small>('+txId+')</small>':'')+'</h2><div id="t-'+txId+'" class="rssi-plot rssi-plot-detail"></div>'));
+					$chartContainer.append($('<h2><span class="editable" id="edit-t-'+txId+'">'+txName+'</span>'+(showName?' <small>('+txId+')</small>':'')+'</h2><canvas id="t-'+txId+'" class="rssi-plot rssi-plot-detail" width="720"></canvas>'));
 				}else {
-					$chartContainer.append($('<div class="col-xs-6 col-sm-6 col-md-4 col-lg-3"><h2><span class="editable" id="edit-t-'+txId+'">'+txName+'</span> '+(showName?' <small>('+txId+')</small>':'')+'</h2><a href="details.php?t='+txId+'"><div id="t-'+txId+'" class="rssi-plot"></div></a></div>'));
+					$chartContainer.append($('<div class="col-xs-6 col-sm-6 col-md-4 col-lg-3"><h2><span class="editable" id="edit-t-'+txId+'">'+txName+'</span> '+(showName?' <small>('+txId+')</small>':'')+'</h2><a href="details.php?t='+txId+'"><canvas id="t-'+txId+'" class="rssi-plot"></canvas></a></div>'));
 				}
 				$('#edit-t-'+txId).inlineEdit({
 					save: function(event,hash,widget){
@@ -295,17 +193,24 @@ var sensorViz = function(){
 					buttons:'<a href="#" class="save"><span class="glyphicon glyphicon-ok"></span></a>'
 						+'<a href="#" class="cancel"><span class="glyphicon glyphicon-remove"></span></a>'
 				});
-				plots[txId] = $.plot($('#t-'+txId),chartData[txId],genOptions(txId,numRx));
-//				plots[txId].hooks.draw.push(drawEvents2);
+				plots[txId] = new SmoothieChart(
+						{
+							millisPerPixel: millisPerPixel,
+							grid: {
+								verticalSections: 7,
+								millisPerLine: millisPerLine
+							},
+							maxValue: -40,
+							minValue: -100,
+							timestampFormatter: SmoothieChart.timeFormatter,
+							maxDataSetLength: 10000
+						});
+				plots[txId].streamTo(document.getElementById('t-'+txId),1000);
+				resize(null,txId);
 				plotsR[plots[txId]] = txId;
-			}else {
-				plots[txId].setData(chartData[txId]);
-				if(numRx != currentTxers[txId]){
-					currentTxers[txId] = numRx;
-					plots[txId].setupGrid();
-				}
-				/* This was unnecessary after setData() */
-				plots[txId].draw();
+				$.each(timeSeries[txId],function(rxId,series){
+					plots[txId].addTimeSeries(series, {lineWidth: 1, strokeStyle: rxColors[rxId]});
+				});
 			}
 		});
 
@@ -340,15 +245,15 @@ var sensorViz = function(){
 	}; /* updateBinEvents(jsonData) */
 
 	function updateDataTimestamps(){
-		var now = (Date.now()-start)/1000;
+		var now = Date.now()-start;
+		var oldest = Date.now() - (chartOptions.maxAgeSec*1000);
 		var delta = now - lastUpdate;
 		lastUpdate = now;
-		$.each(sensorData,function(txId,mapByRx){
+		$.each(sensorDataRaw,function(txId,mapByRx){
 			$.each(mapByRx,function(rxId,data){
 				var spliceUntil = -1;
 				for(var i = 0; i < data.length; i++){
-						data[i][0] -= delta;
-						if(data[i][0] < -chartOptions.maxAgeSec){
+						if(data[i][0] < oldest){
 							spliceUntil = i;
 						}
 				}
@@ -377,21 +282,26 @@ var sensorViz = function(){
 			}
 		});
 
-		$.each(plots,function(txId,plot){
-			if(typeof chartData[txId] !== 'undefined'){
-				plot.setData(chartData[txId]);
-				plot.draw();
-			}
-		});
-
 	}
 
-	window.addEventListener('resize',function(){
-		$.each(plots,function(idx,plot){
-			plot.resize();
-			plot.setupGrid();
-		});
-	});
+
+	function resize(evt,txId){
+		if(typeof txId !== 'undefined'){
+				var $can = $('#t-'+txId);
+				var $par = $can.parent();
+				$can.attr('width',$par.innerWidth());
+				$can.attr('height',maxCanvHeight);
+		}else {
+			$('.rssi-plot').each(function(idx,canvas){
+				var $can = $(canvas);
+				var $par = $can.parent();
+				$can.attr('width',$par.innerWidth());
+				$can.attr('height',maxCanvHeight);
+			});
+		}
+	}
+
+	window.addEventListener('resize',resize,false);
 
 	return {
 		update: this.updateSensors,
@@ -427,22 +337,18 @@ $(document).ready(function(){
 			}).error(function(xhr,status){
 				console.log(xhr);
 			}).always(function(data){
-				setTimeout(doUpdates,1000);
+				setTimeout(doUpdates,500);
 			});
-		}	else if(updateCount % 3 == 1){
+		}	else {
 			var res = $.getJSON(baseURL+"evt/since?since="+(sensorViz.latest+1)+"&callback=?");
 			res.done(function(data){
 				sensorViz.updateBinEvt(data);
 			}).error(function(xhr,status){
 				console.log(xhr);
 			}).always(function(data){
-				setTimeout(doUpdates,1000);
+				setTimeout(doUpdates,500);
 			});
-		} else {
-			sensorViz.tick();
-			setTimeout(doUpdates,1000);
 		}
-		
 	}
 	sensorViz.restore();
 

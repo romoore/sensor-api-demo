@@ -119,13 +119,15 @@
 }
 
 .rssi-plot {
+	/*
 	height: 260px;
 	width: 100%;
 	display: inline-block;
+	*/
 }
 
 .rssi-plot-detail {
-	height: 480px;
+/*	height: 480px; */
 }
 
 .chart-title {
